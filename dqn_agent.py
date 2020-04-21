@@ -64,16 +64,16 @@ class Agent():
             eps (float): epsilon, for epsilon-greedy action selection
         """
         state = torch.from_numpy(state).float().unsqueeze(0).to(device)
-        self.qnetwork_local.eval()
+        self.qnetwork_local.eval() # Via non-training (normal usage) mode
         with torch.no_grad():
-            action_values = self.qnetwork_local(state)
-        self.qnetwork_local.train()
+            action_values = self.qnetwork_local(state) # Get action-values with Forward through DQN-Local
+        self.qnetwork_local.train() # Change back to training mode
 
         # Epsilon-greedy action selection
         if random.random() > eps:
-            return (np.argmax(action_values.cpu().data.numpy())).astype(int)
+            return (np.argmax(action_values.cpu().data.numpy())).astype(int) # To integer
         else:
-            return (random.choice(np.arange(self.action_size))).astype(int)
+            return (random.choice(np.arange(self.action_size))).astype(int) # To integer
 
     def learn(self, experiences, gamma):
         """Update value parameters using given batch of experience tuples.
@@ -85,13 +85,18 @@ class Agent():
         """
         states, actions, rewards, next_states, dones = experiences
         
-
+        # Forward through DQN-Target; Then, get detach (the output) and re-format it
         next_q = self.qnetwork_target(next_states).detach().max(1)[0].unsqueeze(1)
-        target_q = rewards + (gamma*next_q*(1-dones)) # bellman equation
-        
+        # Calculate the Target-Action-Value
+        target_q = rewards + (gamma*next_q*(1-dones)) # Bellman Eq
+
+        # Forward through DQN-Local
         current_q = self.qnetwork_local(states).gather(1, actions)
+        
+        # Calculate loss (variation) between Target-Action-Value and Current-Action-Value
         loss = F.mse_loss(current_q, target_q)
         
+        # According to the loss, update the weights in DQN-Local
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
